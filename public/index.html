@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>사회적경제 퀴즈</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="participant-page">
+    <main class="quiz-shell" id="app">
+      <section class="start-panel" id="startPanel">
+        <div class="brand-block">
+          <p class="kicker">사회적경제</p>
+          <h1>퀴즈 게임</h1>
+          <p class="start-meta" id="startMeta">문제를 불러오는 중...</p>
+        </div>
+        <button class="primary-action xl" id="startButton" disabled>시작하기</button>
+      </section>
+
+      <section class="quiz-panel hidden" id="quizPanel" aria-live="polite">
+        <header class="quiz-topbar">
+          <div>
+            <p class="kicker">문제</p>
+            <strong id="progressLabel">1 / 1</strong>
+          </div>
+          <div class="timer-badge" id="timerBadge">15</div>
+        </header>
+
+        <div class="timer-track" aria-hidden="true">
+          <div class="timer-fill" id="timerFill"></div>
+        </div>
+
+        <article class="question-area">
+          <h2 id="questionText"></h2>
+          <div class="answer-grid" id="answerGrid"></div>
+        </article>
+
+        <div class="result-stamp hidden" id="resultStamp">
+          <span id="resultSymbol">O</span>
+          <strong id="resultText">정답입니다</strong>
+        </div>
+      </section>
+
+      <section class="score-panel hidden" id="scorePanel">
+        <p class="kicker">결과</p>
+        <h2 id="scoreTitle">수고하셨습니다</h2>
+        <div class="score-number" id="scoreNumber">0점</div>
+        <p class="score-detail" id="scoreDetail">정답 0개 / 총 0문제</p>
+        <button class="primary-action xl" id="restartButton">다시 시작</button>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

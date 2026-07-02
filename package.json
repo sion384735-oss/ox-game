@@ -1,0 +1,12 @@
+{
+  "name": "social-economy-quiz",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local event quiz web app for tablets",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

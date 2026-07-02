@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>사회적경제 퀴즈 관리자</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="admin-page">
+    <main class="admin-shell">
+      <section class="login-panel" id="loginPanel">
+        <div>
+          <p class="kicker">관리자</p>
+          <h1>퀴즈 관리</h1>
+        </div>
+        <form id="loginForm" class="login-form">
+          <label>
+            <span>비밀번호</span>
+            <input id="passwordInput" type="password" autocomplete="current-password" required />
+          </label>
+          <button class="primary-action" type="submit">로그인</button>
+          <p class="form-message" id="loginMessage"></p>
+        </form>
+      </section>
+
+      <section class="admin-workspace hidden" id="adminWorkspace">
+        <header class="admin-header">
+          <div>
+            <p class="kicker">사회적경제</p>
+            <h1>문제 관리</h1>
+          </div>
+          <div class="admin-actions">
+            <a class="secondary-action" href="/" target="_blank" rel="noreferrer">참가자 화면</a>
+            <button class="secondary-action" id="logoutButton" type="button">로그아웃</button>
+          </div>
+        </header>
+
+        <div class="admin-grid">
+          <section class="editor-panel">
+            <div class="section-heading">
+              <h2 id="editorTitle">문제 등록</h2>
+              <button class="text-action hidden" id="cancelEditButton" type="button">수정 취소</button>
+            </div>
+
+            <form id="questionForm" class="question-form">
+              <div class="segmented-control" role="tablist" aria-label="문제 유형">
+                <button type="button" class="active" data-type="ox">OX</button>
+                <button type="button" data-type="choice">객관식</button>
+              </div>
+
+              <label>
+                <span>문제</span>
+                <textarea id="promptInput" rows="4" required></textarea>
+              </label>
+
+              <div id="oxFields" class="answer-settings">
+                <span class="label-text">정답</span>
+                <div class="segmented-control compact" role="tablist" aria-label="OX 정답">
+                  <button type="button" class="active" data-ox="true">O</button>
+                  <button type="button" data-ox="false">X</button>
+                </div>
+              </div>
+
+              <div id="choiceFields" class="choice-fields hidden">
+                <div class="choice-row">
+                  <input type="radio" name="choiceAnswer" value="0" checked aria-label="1번 정답" />
+                  <input type="text" placeholder="1번 보기" />
+                </div>
+                <div class="choice-row">
+                  <input type="radio" name="choiceAnswer" value="1" aria-label="2번 정답" />
+                  <input type="text" placeholder="2번 보기" />
+                </div>
+                <div class="choice-row">
+                  <input type="radio" name="choiceAnswer" value="2" aria-label="3번 정답" />
+                  <input type="text" placeholder="3번 보기" />
+                </div>
+                <div class="choice-row">
+                  <input type="radio" name="choiceAnswer" value="3" aria-label="4번 정답" />
+                  <input type="text" placeholder="4번 보기" />
+                </div>
+              </div>
+
+              <button class="primary-action" id="saveQuestionButton" type="submit">등록</button>
+              <p class="form-message" id="formMessage"></p>
+            </form>
+
+            <div class="bulk-panel">
+              <div class="section-heading">
+                <h2>한꺼번에 등록</h2>
+              </div>
+              <textarea id="bulkInput" rows="10" spellcheck="false">OX
+문제: 사회적기업은 사회적 목적을 추구하면서 영업활동을 한다.
+정답: O
+
+객관식
+문제: 협동조합의 기본 원칙과 가장 가까운 것은?
+1. 조합원의 민주적 운영
+2. 한 사람의 독점 운영
+3. 단기 이익만 우선
+4. 지역사회 배제
+정답: 1</textarea>
+              <button class="secondary-action full" id="bulkImportButton" type="button">붙여넣은 문제 등록</button>
+              <p class="form-message" id="bulkMessage"></p>
+            </div>
+          </section>
+
+          <section class="question-list-panel">
+            <div class="section-heading">
+              <h2>등록된 문제</h2>
+              <span id="questionCount">0개</span>
+            </div>
+            <div class="question-list" id="questionList"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="/admin.js"></script>
+  </body>
+</html>
