@@ -4,17 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>사회적경제 퀴즈</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=background-panel-20260703" />
   </head>
   <body class="participant-page">
     <main class="quiz-shell" id="app">
       <section class="start-panel" id="startPanel">
-        <div class="brand-block">
-          <p class="kicker">사회적경제</p>
-          <h1>퀴즈 게임</h1>
-          <p class="start-meta" id="startMeta">문제를 불러오는 중...</p>
+        <div class="hero-content-panel">
+          <div class="brand-block">
+            <p class="kicker" id="startKicker">사회적경제</p>
+            <h1 id="quizTitle">퀴즈 게임</h1>
+            <p class="start-meta" id="startMeta">문제를 불러오는 중...</p>
+          </div>
+          <button class="primary-action xl" id="startButton" disabled>시작하기</button>
         </div>
-        <button class="primary-action xl" id="startButton" disabled>시작하기</button>
       </section>
 
       <section class="quiz-panel hidden" id="quizPanel" aria-live="polite">
@@ -41,15 +43,16 @@
         </div>
       </section>
 
-      <section class="score-panel hidden" id="scorePanel">
-        <p class="kicker">결과</p>
-        <h2 id="scoreTitle">수고하셨습니다</h2>
-        <div class="score-number" id="scoreNumber">0점</div>
-        <p class="score-detail" id="scoreDetail">정답 0개 / 총 0문제</p>
-        <button class="primary-action xl" id="restartButton">다시 시작</button>
+      <section class="complete-panel hidden" id="completePanel">
+        <div class="fireworks" id="fireworks" aria-hidden="true"></div>
+        <div class="hero-content-panel">
+          <p class="kicker" id="finalKicker">FINISH</p>
+          <h2 class="mission-title" id="finalMessage">MISSION COMPLETE</h2>
+          <button class="primary-action xl" id="restartButton">다시 시작</button>
+        </div>
       </section>
     </main>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=background-panel-20260703"></script>
   </body>
 </html>

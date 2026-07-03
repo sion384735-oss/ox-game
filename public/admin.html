@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>사회적경제 퀴즈 관리자</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=background-panel-20260703" />
   </head>
   <body class="admin-page">
     <main class="admin-shell">
@@ -37,6 +37,103 @@
 
         <div class="admin-grid">
           <section class="editor-panel">
+            <div class="design-settings-block">
+              <div class="section-heading">
+                <h2>디자인 설정</h2>
+              </div>
+
+              <form id="designForm" class="design-form">
+                <label>
+                  <span>시작 작은 문구</span>
+                  <input id="settingStartKicker" type="text" maxlength="40" required />
+                </label>
+
+                <label>
+                  <span>퀴즈 제목</span>
+                  <input id="settingQuizTitle" type="text" maxlength="80" required />
+                </label>
+
+                <label>
+                  <span>시작 화면 문구</span>
+                  <input id="settingStartMessage" type="text" maxlength="160" required />
+                </label>
+
+                <div class="image-field">
+                  <span>시작 배경 사진</span>
+                  <input id="settingStartBackgroundImage" type="file" accept="image/*" />
+                  <div class="image-actions">
+                    <button class="secondary-action small" id="clearStartBackgroundButton" type="button">사진 삭제</button>
+                    <small id="startBackgroundStatus">등록된 사진 없음</small>
+                  </div>
+                </div>
+
+                <label class="range-field">
+                  <span>시작 배경 어둡게 <strong id="startBackgroundDimValue">12%</strong></span>
+                  <input id="settingStartBackgroundDim" type="range" min="0" max="80" step="1" />
+                </label>
+
+                <div class="settings-grid">
+                  <label class="color-field">
+                    <span>배경색</span>
+                    <input id="settingBackgroundColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    <span>버튼 색상</span>
+                    <input id="settingButtonColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    <span>글자 색상</span>
+                    <input id="settingTextColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    <span>정답 색상</span>
+                    <input id="settingCorrectColor" type="color" />
+                  </label>
+                  <label class="color-field">
+                    <span>오답 색상</span>
+                    <input id="settingWrongColor" type="color" />
+                  </label>
+                  <label>
+                    <span>제한시간</span>
+                    <input id="settingTimeLimit" type="number" min="3" max="120" step="1" required />
+                  </label>
+                </div>
+
+                <label>
+                  <span>마지막 작은 문구</span>
+                  <input id="settingFinalKicker" type="text" maxlength="40" required />
+                </label>
+
+                <label>
+                  <span>마지막 화면 문구</span>
+                  <input id="settingFinalMessage" type="text" maxlength="80" required />
+                </label>
+
+                <div class="image-field">
+                  <span>마지막 배경 사진</span>
+                  <input id="settingFinalBackgroundImage" type="file" accept="image/*" />
+                  <div class="image-actions">
+                    <button class="secondary-action small" id="clearFinalBackgroundButton" type="button">사진 삭제</button>
+                    <small id="finalBackgroundStatus">등록된 사진 없음</small>
+                  </div>
+                </div>
+
+                <label class="range-field">
+                  <span>마지막 배경 어둡게 <strong id="finalBackgroundDimValue">12%</strong></span>
+                  <input id="settingFinalBackgroundDim" type="range" min="0" max="80" step="1" />
+                </label>
+
+                <label class="toggle-field">
+                  <input id="settingFireworks" type="checkbox" />
+                  <span>폭죽 효과 켜기</span>
+                </label>
+
+                <button class="primary-action" type="submit">디자인 저장</button>
+                <p class="form-message" id="designMessage"></p>
+              </form>
+            </div>
+
+            <div class="question-editor-block">
             <div class="section-heading">
               <h2 id="editorTitle">문제 등록</h2>
               <button class="text-action hidden" id="cancelEditButton" type="button">수정 취소</button>
@@ -83,6 +180,7 @@
               <button class="primary-action" id="saveQuestionButton" type="submit">등록</button>
               <p class="form-message" id="formMessage"></p>
             </form>
+            </div>
 
             <div class="bulk-panel">
               <div class="section-heading">
@@ -115,6 +213,6 @@
       </section>
     </main>
 
-    <script src="/admin.js"></script>
+    <script src="/admin.js?v=background-panel-20260703"></script>
   </body>
 </html>

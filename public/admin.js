@@ -1,8 +1,28 @@
 const state = {
   questions: [],
+  settings: null,
   type: "ox",
   oxAnswer: true,
   editingId: null
+};
+
+const DEFAULT_SETTINGS = {
+  startKicker: "사회적경제",
+  quizTitle: "퀴즈 게임",
+  startMessage: "총 {count}문제 · 문제당 {seconds}초",
+  startBackgroundImage: "",
+  startBackgroundDim: 12,
+  backgroundColor: "#f4f7f8",
+  buttonColor: "#007f7a",
+  textColor: "#17212b",
+  correctColor: "#1f9d55",
+  wrongColor: "#d83a34",
+  finalKicker: "FINISH",
+  finalMessage: "MISSION COMPLETE",
+  finalBackgroundImage: "",
+  finalBackgroundDim: 12,
+  timeLimitSeconds: 15,
+  fireworksEnabled: true
 };
 
 const loginPanel = document.querySelector("#loginPanel");
@@ -24,6 +44,30 @@ const questionCount = document.querySelector("#questionCount");
 const editorTitle = document.querySelector("#editorTitle");
 const saveQuestionButton = document.querySelector("#saveQuestionButton");
 const cancelEditButton = document.querySelector("#cancelEditButton");
+const designForm = document.querySelector("#designForm");
+const settingStartKicker = document.querySelector("#settingStartKicker");
+const settingQuizTitle = document.querySelector("#settingQuizTitle");
+const settingStartMessage = document.querySelector("#settingStartMessage");
+const settingStartBackgroundImage = document.querySelector("#settingStartBackgroundImage");
+const clearStartBackgroundButton = document.querySelector("#clearStartBackgroundButton");
+const startBackgroundStatus = document.querySelector("#startBackgroundStatus");
+const settingStartBackgroundDim = document.querySelector("#settingStartBackgroundDim");
+const startBackgroundDimValue = document.querySelector("#startBackgroundDimValue");
+const settingBackgroundColor = document.querySelector("#settingBackgroundColor");
+const settingButtonColor = document.querySelector("#settingButtonColor");
+const settingTextColor = document.querySelector("#settingTextColor");
+const settingCorrectColor = document.querySelector("#settingCorrectColor");
+const settingWrongColor = document.querySelector("#settingWrongColor");
+const settingTimeLimit = document.querySelector("#settingTimeLimit");
+const settingFinalKicker = document.querySelector("#settingFinalKicker");
+const settingFinalMessage = document.querySelector("#settingFinalMessage");
+const settingFinalBackgroundImage = document.querySelector("#settingFinalBackgroundImage");
+const clearFinalBackgroundButton = document.querySelector("#clearFinalBackgroundButton");
+const finalBackgroundStatus = document.querySelector("#finalBackgroundStatus");
+const settingFinalBackgroundDim = document.querySelector("#settingFinalBackgroundDim");
+const finalBackgroundDimValue = document.querySelector("#finalBackgroundDimValue");
+const settingFireworks = document.querySelector("#settingFireworks");
+const designMessage = document.querySelector("#designMessage");
 
 function showLogin() {
   loginPanel.classList.remove("hidden");
@@ -52,7 +96,7 @@ async function boot() {
   const me = await api("/api/admin/me");
   if (me.authenticated) {
     showWorkspace();
-    await loadQuestions();
+    await Promise.all([loadQuestions(), loadSettings()]);
   } else {
     showLogin();
   }
@@ -62,6 +106,109 @@ async function loadQuestions() {
   const data = await api("/api/admin/questions");
   state.questions = data.questions || [];
   renderList();
+}
+
+async function loadSettings() {
+  const data = await api("/api/admin/settings");
+  state.settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
+  renderSettingsForm();
+}
+
+function renderSettingsForm() {
+  const settings = state.settings || DEFAULT_SETTINGS;
+  settingStartKicker.value = settings.startKicker;
+  settingQuizTitle.value = settings.quizTitle;
+  settingStartMessage.value = settings.startMessage;
+  settingStartBackgroundImage.value = "";
+  startBackgroundStatus.textContent = settings.startBackgroundImage ? "사진 등록됨" : "등록된 사진 없음";
+  settingStartBackgroundDim.value = Number(settings.startBackgroundDim ?? DEFAULT_SETTINGS.startBackgroundDim);
+  startBackgroundDimValue.textContent = `${settingStartBackgroundDim.value}%`;
+  settingBackgroundColor.value = settings.backgroundColor;
+  settingButtonColor.value = settings.buttonColor;
+  settingTextColor.value = settings.textColor;
+  settingCorrectColor.value = settings.correctColor;
+  settingWrongColor.value = settings.wrongColor;
+  settingTimeLimit.value = settings.timeLimitSeconds;
+  settingFinalKicker.value = settings.finalKicker;
+  settingFinalMessage.value = settings.finalMessage;
+  settingFinalBackgroundImage.value = "";
+  finalBackgroundStatus.textContent = settings.finalBackgroundImage ? "사진 등록됨" : "등록된 사진 없음";
+  settingFinalBackgroundDim.value = Number(settings.finalBackgroundDim ?? DEFAULT_SETTINGS.finalBackgroundDim);
+  finalBackgroundDimValue.textContent = `${settingFinalBackgroundDim.value}%`;
+  settingFireworks.checked = Boolean(settings.fireworksEnabled);
+}
+
+function collectSettingsPayload() {
+  return {
+    startKicker: settingStartKicker.value.trim(),
+    quizTitle: settingQuizTitle.value.trim(),
+    startMessage: settingStartMessage.value.trim(),
+    startBackgroundImage: state.settings?.startBackgroundImage || "",
+    startBackgroundDim: Number(settingStartBackgroundDim.value),
+    backgroundColor: settingBackgroundColor.value,
+    buttonColor: settingButtonColor.value,
+    textColor: settingTextColor.value,
+    correctColor: settingCorrectColor.value,
+    wrongColor: settingWrongColor.value,
+    finalKicker: settingFinalKicker.value.trim(),
+    finalMessage: settingFinalMessage.value.trim(),
+    finalBackgroundImage: state.settings?.finalBackgroundImage || "",
+    finalBackgroundDim: Number(settingFinalBackgroundDim.value),
+    timeLimitSeconds: Number(settingTimeLimit.value),
+    fireworksEnabled: settingFireworks.checked
+  };
+}
+
+async function setBackgroundImage(kind, file) {
+  if (!file) return;
+  designMessage.textContent = "사진을 처리하는 중입니다.";
+  try {
+    const dataUrl = await resizeImage(file);
+    if (!state.settings) state.settings = { ...DEFAULT_SETTINGS };
+    if (kind === "start") {
+      state.settings.startBackgroundImage = dataUrl;
+      startBackgroundStatus.textContent = "새 사진 선택됨";
+    } else {
+      state.settings.finalBackgroundImage = dataUrl;
+      finalBackgroundStatus.textContent = "새 사진 선택됨";
+    }
+    designMessage.textContent = "사진을 선택했습니다. 디자인 저장을 눌러야 반영됩니다.";
+  } catch (error) {
+    designMessage.textContent = error.message;
+  }
+}
+
+function resizeImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("이미지 파일만 선택할 수 있습니다."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("사진을 읽지 못했습니다."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("사진 형식을 확인해주세요."));
+      image.onload = () => {
+        const maxSide = 1600;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+        if (dataUrl.length > 6 * 1024 * 1024) {
+          reject(new Error("사진이 너무 큽니다. 더 작은 사진을 선택해주세요."));
+          return;
+        }
+        resolve(dataUrl);
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function setType(type) {
@@ -212,7 +359,7 @@ loginForm.addEventListener("submit", async (event) => {
     });
     passwordInput.value = "";
     showWorkspace();
-    await loadQuestions();
+    await Promise.all([loadQuestions(), loadSettings()]);
   } catch (error) {
     loginMessage.textContent = error.message;
   }
@@ -258,6 +405,54 @@ questionForm.addEventListener("submit", async (event) => {
 });
 
 cancelEditButton.addEventListener("click", resetForm);
+
+designForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  designMessage.textContent = "";
+  try {
+    const data = await api("/api/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify(collectSettingsPayload())
+    });
+    state.settings = data.settings;
+    renderSettingsForm();
+    designMessage.textContent = "디자인 설정을 저장했습니다.";
+  } catch (error) {
+    designMessage.textContent = error.message;
+  }
+});
+
+settingStartBackgroundImage.addEventListener("change", () => {
+  setBackgroundImage("start", settingStartBackgroundImage.files[0]);
+});
+
+settingFinalBackgroundImage.addEventListener("change", () => {
+  setBackgroundImage("final", settingFinalBackgroundImage.files[0]);
+});
+
+clearStartBackgroundButton.addEventListener("click", () => {
+  if (!state.settings) state.settings = { ...DEFAULT_SETTINGS };
+  state.settings.startBackgroundImage = "";
+  settingStartBackgroundImage.value = "";
+  startBackgroundStatus.textContent = "삭제 예정";
+  designMessage.textContent = "디자인 저장을 누르면 시작 배경 사진이 삭제됩니다.";
+});
+
+clearFinalBackgroundButton.addEventListener("click", () => {
+  if (!state.settings) state.settings = { ...DEFAULT_SETTINGS };
+  state.settings.finalBackgroundImage = "";
+  settingFinalBackgroundImage.value = "";
+  finalBackgroundStatus.textContent = "삭제 예정";
+  designMessage.textContent = "디자인 저장을 누르면 마지막 배경 사진이 삭제됩니다.";
+});
+
+settingStartBackgroundDim.addEventListener("input", () => {
+  startBackgroundDimValue.textContent = `${settingStartBackgroundDim.value}%`;
+});
+
+settingFinalBackgroundDim.addEventListener("input", () => {
+  finalBackgroundDimValue.textContent = `${settingFinalBackgroundDim.value}%`;
+});
 
 bulkImportButton.addEventListener("click", async () => {
   bulkMessage.textContent = "";

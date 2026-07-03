@@ -1,5 +1,13 @@
-const RESULT_DELAY_MS = 1100;
-const DEFAULT_SETTINGS = {
+const fs = require("fs/promises");
+const path = require("path");
+
+const root = path.join(__dirname, "..");
+const questionsPath = path.join(root, "data", "questions.json");
+const settingsPath = path.join(root, "data", "settings.json");
+const stylesPath = path.join(root, "public", "styles.css");
+const outputPath = path.join(root, "offline-quiz.html");
+
+const defaultSettings = {
   startKicker: "사회적경제",
   quizTitle: "퀴즈 게임",
   startMessage: "총 {count}문제 · 문제당 {seconds}초",
@@ -18,12 +26,118 @@ const DEFAULT_SETTINGS = {
   fireworksEnabled: true
 };
 
+function escapeScriptJson(value) {
+  return JSON.stringify(value, null, 2).replace(/</g, "\\u003c");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatMessage(template, values) {
+  return String(template || "")
+    .replace(/\{count\}/g, String(values.count))
+    .replace(/\{seconds\}/g, String(values.seconds));
+}
+
+async function loadSettings() {
+  try {
+    const settings = JSON.parse(await fs.readFile(settingsPath, "utf8"));
+    return {
+      ...defaultSettings,
+      ...settings,
+      timeLimitSeconds: Number(settings.timeLimitSeconds || defaultSettings.timeLimitSeconds),
+      startBackgroundDim: Number(settings.startBackgroundDim ?? defaultSettings.startBackgroundDim),
+      finalBackgroundDim: Number(settings.finalBackgroundDim ?? defaultSettings.finalBackgroundDim),
+      fireworksEnabled:
+        settings.fireworksEnabled === undefined ? defaultSettings.fireworksEnabled : Boolean(settings.fireworksEnabled)
+    };
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+async function main() {
+  const questions = JSON.parse(await fs.readFile(questionsPath, "utf8"));
+  const settings = await loadSettings();
+  const styles = await fs.readFile(stylesPath, "utf8");
+  const startMessage = formatMessage(settings.startMessage, {
+    count: questions.length,
+    seconds: settings.timeLimitSeconds
+  });
+
+  const html = `<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>사회적경제 퀴즈 오프라인</title>
+    <style>
+${styles}
+    </style>
+  </head>
+  <body class="participant-page">
+    <main class="quiz-shell" id="app">
+      <section class="start-panel" id="startPanel">
+        <div class="hero-content-panel">
+          <div class="brand-block">
+            <p class="kicker" id="startKicker">${escapeHtml(settings.startKicker)}</p>
+            <h1 id="quizTitle">${escapeHtml(settings.quizTitle)}</h1>
+            <p class="start-meta" id="startMeta">${escapeHtml(startMessage)}</p>
+          </div>
+          <button class="primary-action xl" id="startButton">시작하기</button>
+        </div>
+      </section>
+
+      <section class="quiz-panel hidden" id="quizPanel" aria-live="polite">
+        <header class="quiz-topbar">
+          <div>
+            <p class="kicker">문제</p>
+            <strong id="progressLabel">1 / 1</strong>
+          </div>
+          <div class="timer-badge" id="timerBadge">${settings.timeLimitSeconds}</div>
+        </header>
+
+        <div class="timer-track" aria-hidden="true">
+          <div class="timer-fill" id="timerFill"></div>
+        </div>
+
+        <article class="question-area">
+          <h2 id="questionText"></h2>
+          <div class="answer-grid" id="answerGrid"></div>
+        </article>
+
+        <div class="result-stamp hidden" id="resultStamp">
+          <span id="resultSymbol">O</span>
+          <strong id="resultText">정답입니다</strong>
+        </div>
+      </section>
+
+      <section class="complete-panel hidden" id="completePanel">
+        <div class="fireworks" id="fireworks" aria-hidden="true"></div>
+        <div class="hero-content-panel">
+          <p class="kicker" id="finalKicker">${escapeHtml(settings.finalKicker)}</p>
+          <h2 class="mission-title" id="finalMessage">${escapeHtml(settings.finalMessage)}</h2>
+          <button class="primary-action xl" id="restartButton">다시 시작</button>
+        </div>
+      </section>
+    </main>
+
+<script>
+const OFFLINE_QUESTIONS = ${escapeScriptJson(questions)};
+const OFFLINE_SETTINGS = ${escapeScriptJson(settings)};
+const RESULT_DELAY_MS = 1100;
+
 const state = {
-  questions: [],
-  settings: { ...DEFAULT_SETTINGS },
+  questions: OFFLINE_QUESTIONS,
+  settings: OFFLINE_SETTINGS,
   currentIndex: 0,
   answered: false,
-  secondsLeft: DEFAULT_SETTINGS.timeLimitSeconds,
+  secondsLeft: OFFLINE_SETTINGS.timeLimitSeconds,
   timer: null
 };
 
@@ -48,61 +162,20 @@ const fireworks = document.querySelector("#fireworks");
 const finalKicker = document.querySelector("#finalKicker");
 const finalMessage = document.querySelector("#finalMessage");
 
-async function fetchQuestions() {
-  const response = await fetch("/api/questions", { cache: "no-store" });
-  if (!response.ok) throw new Error("문제를 불러오지 못했습니다.");
-  const data = await response.json();
-  return data.questions || [];
-}
-
-async function fetchSettings() {
-  const response = await fetch("/api/settings", { cache: "no-store" });
-  if (!response.ok) throw new Error("디자인 설정을 불러오지 못했습니다.");
-  const data = await response.json();
-  return normalizeSettings(data.settings || {});
-}
-
-async function setup() {
-  try {
-    const [questions, settings] = await Promise.all([fetchQuestions(), fetchSettings()]);
-    state.questions = questions;
-    state.settings = settings;
-    applySettings();
-    startMeta.textContent = formatMessage(settings.startMessage, {
-      count: state.questions.length,
-      seconds: settings.timeLimitSeconds
-    });
-    startButton.disabled = state.questions.length === 0;
-    if (state.questions.length === 0) {
-      startMeta.textContent = "등록된 문제가 없습니다. 관리자 화면에서 문제를 등록해주세요.";
-    }
-  } catch (error) {
-    startMeta.textContent = error.message;
-  }
-}
-
-function normalizeSettings(settings) {
-  return {
-    ...DEFAULT_SETTINGS,
-    ...settings,
-    timeLimitSeconds: Number(settings.timeLimitSeconds || DEFAULT_SETTINGS.timeLimitSeconds),
-    startBackgroundDim: Number(settings.startBackgroundDim ?? DEFAULT_SETTINGS.startBackgroundDim),
-    finalBackgroundDim: Number(settings.finalBackgroundDim ?? DEFAULT_SETTINGS.finalBackgroundDim),
-    fireworksEnabled:
-      settings.fireworksEnabled === undefined ? DEFAULT_SETTINGS.fireworksEnabled : Boolean(settings.fireworksEnabled)
-  };
-}
-
 function formatMessage(template, values) {
   return String(template || "")
-    .replace(/\{count\}/g, String(values.count))
-    .replace(/\{seconds\}/g, String(values.seconds));
+    .replace(/\\{count\\}/g, String(values.count))
+    .replace(/\\{seconds\\}/g, String(values.seconds));
 }
 
 function applySettings() {
   const settings = state.settings;
   startKicker.textContent = settings.startKicker;
   quizTitle.textContent = settings.quizTitle;
+  startMeta.textContent = formatMessage(settings.startMessage, {
+    count: state.questions.length,
+    seconds: settings.timeLimitSeconds
+  });
   finalKicker.textContent = settings.finalKicker;
   finalMessage.textContent = settings.finalMessage;
   document.documentElement.style.setProperty("--participant-background", settings.backgroundColor);
@@ -118,13 +191,13 @@ function applySettings() {
 }
 
 function cssImage(value) {
-  return value ? `url("${value}")` : "none";
+  return value ? \`url("\${value}")\` : "none";
 }
 
 function dimOverlay(image, amount) {
   if (!image) return "none";
   const opacity = Math.max(0, Math.min(80, Number(amount) || 0)) / 100;
-  return `linear-gradient(rgba(0,0,0,${opacity}), rgba(0,0,0,${opacity}))`;
+  return \`linear-gradient(rgba(0,0,0,\${opacity}), rgba(0,0,0,\${opacity}))\`;
 }
 
 function shadeColor(hex, percent) {
@@ -134,7 +207,7 @@ function shadeColor(hex, percent) {
     const channel = parseInt(value.slice(offset, offset + 2), 16);
     return Math.max(0, Math.min(255, channel + amount)).toString(16).padStart(2, "0");
   });
-  return `#${channels.join("")}`;
+  return \`#\${channels.join("")}\`;
 }
 
 function showOnly(panel) {
@@ -157,7 +230,7 @@ function renderQuestion() {
 
   const question = state.questions[state.currentIndex];
   questionArea.classList.toggle("long-question", question.prompt.length > 90);
-  progressLabel.textContent = `${state.currentIndex + 1} / ${state.questions.length}`;
+  progressLabel.textContent = \`\${state.currentIndex + 1} / \${state.questions.length}\`;
   questionText.textContent = question.prompt;
   answerGrid.innerHTML = "";
 
@@ -183,11 +256,11 @@ function renderQuestion() {
 
 function updateTimer() {
   timerBadge.textContent = String(state.secondsLeft);
-  timerFill.style.transform = `scaleX(${state.secondsLeft / state.settings.timeLimitSeconds})`;
+  timerFill.style.transform = \`scaleX(\${state.secondsLeft / state.settings.timeLimitSeconds})\`;
   timerBadge.classList.toggle("danger", state.secondsLeft <= 5);
 }
 
-async function submitAnswer(answer, selectedButton) {
+function submitAnswer(answer, selectedButton) {
   if (state.answered) return;
   state.answered = true;
   clearInterval(state.timer);
@@ -196,17 +269,7 @@ async function submitAnswer(answer, selectedButton) {
 
   const question = state.questions[state.currentIndex];
   const submittedAnswer = question.type === "ox" ? answer === 0 : answer;
-  try {
-    const response = await fetch("/api/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: question.id, answer: submittedAnswer })
-    });
-    const data = await response.json();
-    markAnswered(Boolean(data.correct));
-  } catch {
-    markAnswered(false);
-  }
+  markAnswered(submittedAnswer === question.answer);
 }
 
 function disableAnswers() {
@@ -273,21 +336,32 @@ function createBurst(left, top, colors) {
     const angle = (Math.PI * 2 * index) / count;
     const distance = 90 + Math.random() * 130;
     spark.className = "spark";
-    spark.style.left = `${left}%`;
-    spark.style.top = `${top}%`;
-    spark.style.setProperty("--x", `${Math.cos(angle) * distance}px`);
-    spark.style.setProperty("--y", `${Math.sin(angle) * distance}px`);
+    spark.style.left = \`\${left}%\`;
+    spark.style.top = \`\${top}%\`;
+    spark.style.setProperty("--x", \`\${Math.cos(angle) * distance}px\`);
+    spark.style.setProperty("--y", \`\${Math.sin(angle) * distance}px\`);
     spark.style.setProperty("--color", colors[index % colors.length]);
     spark.addEventListener("animationend", () => spark.remove());
     fireworks.appendChild(spark);
   }
 }
 
+applySettings();
 startButton.addEventListener("click", startQuiz);
-restartButton.addEventListener("click", async () => {
+restartButton.addEventListener("click", () => {
   clearFireworks();
-  await setup();
   showOnly(startPanel);
 });
+    </script>
+  </body>
+</html>
+`;
 
-setup();
+  await fs.writeFile(outputPath, html, "utf8");
+  console.log(`Created ${path.relative(root, outputPath)} with ${questions.length} questions.`);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

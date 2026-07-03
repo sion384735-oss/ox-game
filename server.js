@@ -10,7 +10,8 @@ const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DATA_DIR = path.join(ROOT, "data");
 const QUESTIONS_FILE = path.join(DATA_DIR, "questions.json");
-const MAX_BODY_BYTES = 1024 * 1024;
+const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 const sessions = new Map();
 
@@ -57,6 +58,25 @@ const defaultQuestions = [
   }
 ];
 
+const defaultSettings = {
+  startKicker: "사회적경제",
+  quizTitle: "퀴즈 게임",
+  startMessage: "총 {count}문제 · 문제당 {seconds}초",
+  startBackgroundImage: "",
+  startBackgroundDim: 12,
+  backgroundColor: "#f4f7f8",
+  buttonColor: "#007f7a",
+  textColor: "#17212b",
+  correctColor: "#1f9d55",
+  wrongColor: "#d83a34",
+  finalKicker: "FINISH",
+  finalMessage: "MISSION COMPLETE",
+  finalBackgroundImage: "",
+  finalBackgroundDim: 12,
+  timeLimitSeconds: 15,
+  fireworksEnabled: true
+};
+
 async function ensureDataFile() {
   await fs.mkdir(DATA_DIR, { recursive: true });
   try {
@@ -79,6 +99,92 @@ async function saveQuestions(questions) {
   const tmpFile = `${QUESTIONS_FILE}.tmp`;
   await fs.writeFile(tmpFile, `${JSON.stringify(questions, null, 2)}\n`, "utf8");
   await fs.rename(tmpFile, QUESTIONS_FILE);
+}
+
+async function ensureSettingsFile() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  try {
+    await fs.access(SETTINGS_FILE);
+  } catch {
+    await saveSettings(defaultSettings);
+  }
+}
+
+async function loadSettings() {
+  await ensureSettingsFile();
+  const text = await fs.readFile(SETTINGS_FILE, "utf8");
+  const parsed = JSON.parse(text);
+  return validateSettings(parsed).settings;
+}
+
+async function saveSettings(settings) {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  const tmpFile = `${SETTINGS_FILE}.tmp`;
+  await fs.writeFile(tmpFile, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+  await fs.rename(tmpFile, SETTINGS_FILE);
+}
+
+function cleanText(value, fallback, maxLength = 120) {
+  const text = String(value ?? "").trim();
+  if (!text) return fallback;
+  return text.slice(0, maxLength);
+}
+
+function isHexColor(value) {
+  return /^#[0-9a-fA-F]{6}$/.test(String(value || ""));
+}
+
+function cleanImageDataUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length > 6 * 1024 * 1024) return null;
+  if (!/^data:image\/(png|jpeg|jpg|webp);base64,[a-zA-Z0-9+/=]+$/.test(text)) return null;
+  return text;
+}
+
+function validateSettings(input = {}) {
+  const startBackgroundImage = cleanImageDataUrl(input.startBackgroundImage);
+  const finalBackgroundImage = cleanImageDataUrl(input.finalBackgroundImage);
+  if (startBackgroundImage === null || finalBackgroundImage === null) {
+    return { error: "배경 사진 형식이 올바르지 않거나 파일이 너무 큽니다." };
+  }
+
+  const settings = {
+    startKicker: cleanText(input.startKicker, defaultSettings.startKicker, 40),
+    quizTitle: cleanText(input.quizTitle, defaultSettings.quizTitle, 80),
+    startMessage: cleanText(input.startMessage, defaultSettings.startMessage, 160),
+    startBackgroundImage,
+    startBackgroundDim: Number(input.startBackgroundDim ?? defaultSettings.startBackgroundDim),
+    backgroundColor: isHexColor(input.backgroundColor) ? input.backgroundColor : defaultSettings.backgroundColor,
+    buttonColor: isHexColor(input.buttonColor) ? input.buttonColor : defaultSettings.buttonColor,
+    textColor: isHexColor(input.textColor) ? input.textColor : defaultSettings.textColor,
+    correctColor: isHexColor(input.correctColor) ? input.correctColor : defaultSettings.correctColor,
+    wrongColor: isHexColor(input.wrongColor) ? input.wrongColor : defaultSettings.wrongColor,
+    finalKicker: cleanText(input.finalKicker, defaultSettings.finalKicker, 40),
+    finalMessage: cleanText(input.finalMessage, defaultSettings.finalMessage, 80),
+    finalBackgroundImage,
+    finalBackgroundDim: Number(input.finalBackgroundDim ?? defaultSettings.finalBackgroundDim),
+    timeLimitSeconds: Number(input.timeLimitSeconds ?? defaultSettings.timeLimitSeconds),
+    fireworksEnabled:
+      input.fireworksEnabled === undefined ? defaultSettings.fireworksEnabled : Boolean(input.fireworksEnabled)
+  };
+
+  if (!Number.isInteger(settings.timeLimitSeconds) || settings.timeLimitSeconds < 3 || settings.timeLimitSeconds > 120) {
+    return { error: "제한시간은 3초부터 120초 사이의 숫자로 입력해주세요." };
+  }
+
+  if (
+    !Number.isInteger(settings.startBackgroundDim) ||
+    !Number.isInteger(settings.finalBackgroundDim) ||
+    settings.startBackgroundDim < 0 ||
+    settings.startBackgroundDim > 80 ||
+    settings.finalBackgroundDim < 0 ||
+    settings.finalBackgroundDim > 80
+  ) {
+    return { error: "배경 어둡게 값은 0부터 80 사이의 숫자로 입력해주세요." };
+  }
+
+  return { settings };
 }
 
 function publicQuestion(question) {
@@ -315,6 +421,11 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  if (req.method === "GET" && pathname === "/api/settings") {
+    sendJson(res, 200, { settings: await loadSettings() });
+    return;
+  }
+
   if (req.method === "POST" && pathname === "/api/check") {
     const body = await readJsonBody(req);
     const questions = await loadQuestions();
@@ -353,6 +464,23 @@ async function handleApi(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/admin/questions") {
     sendJson(res, 200, { questions: await loadQuestions() });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/settings") {
+    sendJson(res, 200, { settings: await loadSettings() });
+    return;
+  }
+
+  if (req.method === "PUT" && pathname === "/api/admin/settings") {
+    const body = await readJsonBody(req);
+    const result = validateSettings(body);
+    if (result.error) {
+      sendJson(res, 400, { error: result.error });
+      return;
+    }
+    await saveSettings(result.settings);
+    sendJson(res, 200, { settings: result.settings });
     return;
   }
 
@@ -442,7 +570,7 @@ async function serveStatic(req, res, pathname) {
 
     res.writeHead(200, {
       "Content-Type": contentType,
-      "Cache-Control": ext === ".html" ? "no-store" : "public, max-age=3600"
+      "Cache-Control": "no-store"
     });
     res.end(data);
   } catch (error) {
@@ -484,7 +612,7 @@ function getLocalAddresses() {
     .map((network) => network.address);
 }
 
-ensureDataFile().then(() => {
+Promise.all([ensureDataFile(), ensureSettingsFile()]).then(() => {
   http.createServer(handleRequest).listen(PORT, "0.0.0.0", () => {
     console.log(`사회적경제 퀴즈 서버가 실행 중입니다.`);
     console.log(`참가자 화면: http://localhost:${PORT}`);
